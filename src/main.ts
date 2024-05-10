@@ -165,8 +165,8 @@ run(dataSource, database, async ctx => {
                 })
 
                 assert(ins.inner.length == 2)
-                let srcTransfer = tokenProgram.transfer.decode(ins.inner[0])
-                let destTransfer = tokenProgram.transfer.decode(ins.inner[1])
+                let srcTransfer = tokenProgram.instructions.transfer.decode(ins.inner[0])
+                let destTransfer = tokenProgram.instructions.transfer.decode(ins.inner[1])
 
                 let srcBalance = ins.getTransaction().tokenBalances.find(tb => tb.account == srcTransfer.accounts.source)
                 let destBalance = ins.getTransaction().tokenBalances.find(tb => tb.account === destTransfer.accounts.destination)
