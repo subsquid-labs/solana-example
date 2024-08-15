@@ -50,7 +50,9 @@ docker exec "$(basename "$(pwd)")-db-1" psql -U postgres \
   -c "SELECT slot, from_token, to_token, from_amount, to_amount FROM exchange ORDER BY id LIMIT 10"
 ```
 
-For further details please consult heavily commented [main.ts](./src/main.ts). 
+For further details, please consult heavily commented [main.ts](./src/main.ts). 
+
+For even more details, see [Solana Indexing Docs](https://docs.subsquid.io/solana-indexing/)
 
 ## Decoding binary data
 
