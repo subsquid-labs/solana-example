@@ -31,7 +31,7 @@ while providing game changing performance over traditional RPC API.
 
 ```bash
 # Install dependencies
-npm ci
+npm i
 
 # Compile the project
 npx tsc
