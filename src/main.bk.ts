@@ -4,8 +4,8 @@ import {DataSourceBuilder, SolanaRpcClient} from '@subsquid/solana-stream'
 import {TypeormDatabase} from '@subsquid/typeorm-store'
 import assert from 'assert'
 import * as tokenProgram from './abi/token-program'
-import * as pump from './abi/pump'
-import {Trade} from './model'
+import * as whirlpool from './abi/whirlpool'
+import {Exchange} from './model'
 
 // First we create a DataSource - component,
 // that defines where to get the data and what data should we get.
@@ -83,11 +83,11 @@ const dataSource = new DataSourceBuilder()
     .addInstruction({
         // select instructions, that:
         where: {
-            programId: [pump.programId], // where executed by Whirlpool program
-            d8: [pump.instructions.buy.d8], // have first 8 bytes of .data equal to swap descriptor
-            // ...pump.instructions.swap.accountSelection({ // limiting to USDC-SOL pair only
-            //     whirlpool: ['7qbRF6YsyGuLUVs6Y1q64bdVrfe4ZcUUz1JRdoVNUJnm']
-            // }),
+            programId: [whirlpool.programId], // where executed by Whirlpool program
+            d8: [whirlpool.instructions.swap.d8], // have first 8 bytes of .data equal to swap descriptor
+            ...whirlpool.instructions.swap.accountSelection({ // limiting to USDC-SOL pair only
+                whirlpool: ['7qbRF6YsyGuLUVs6Y1q64bdVrfe4ZcUUz1JRdoVNUJnm']
+            }),
             isCommitted: true // where successfully committed
         },
         // for each instruction selected above
@@ -151,21 +151,18 @@ run(dataSource, database, async ctx => {
     // with convenient getters for derived data (e.g. `Instruction.d8`).
     let blocks = ctx.blocks.map(augmentBlock)
 
-    let trades: Trade[] = []
+    let exchanges: Exchange[] = []
 
     for (let block of blocks) {
         for (let ins of block.instructions) {
             // https://read.cryptodatabytes.com/p/starter-guide-to-solana-data-analysis
-            if (ins.programId === pump.programId && ins.d8 === pump.instructions.buy.d8) {
-                let trade = new Trade({
+            if (ins.programId === whirlpool.programId && ins.d8 === whirlpool.instructions.swap.d8) {
+                let exchange = new Exchange({
                     id: ins.id,
                     slot: block.header.slot,
                     tx: ins.getTransaction().signatures[0],
                     timestamp: new Date(block.header.timestamp * 1000)
                 })
-
-                // let tradeEvent = pump.instructions.buy.decode(ins).data;
-                // trade.mint = tradeEvent.mint;
 
                 assert(ins.inner.length == 2)
                 let srcTransfer = tokenProgram.instructions.transfer.decode(ins.inner[0])
@@ -180,18 +177,18 @@ run(dataSource, database, async ctx => {
                 assert(srcMint)
                 assert(destMint)
 
-                trade.fromToken = srcMint
-                trade.fromOwner = srcBalance?.preOwner || srcTransfer.accounts.source
-                trade.fromAmount = srcTransfer.data.amount
+                exchange.fromToken = srcMint
+                exchange.fromOwner = srcBalance?.preOwner || srcTransfer.accounts.source
+                exchange.fromAmount = srcTransfer.data.amount
 
-                trade.toToken = destMint
-                trade.toOwner = destBalance?.postOwner || destBalance?.preOwner || destTransfer.accounts.destination
-                trade.toAmount = destTransfer.data.amount
+                exchange.toToken = destMint
+                exchange.toOwner = destBalance?.postOwner || destBalance?.preOwner || destTransfer.accounts.destination
+                exchange.toAmount = destTransfer.data.amount
 
-                trades.push(trade)
+                exchanges.push(exchange)
             }
         }
     }
 
-    await ctx.store.insert(trades)
+    await ctx.store.insert(exchanges)
 })
