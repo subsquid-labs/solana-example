@@ -12,6 +12,9 @@ import {Exchange} from './model'
 const dataSource = new DataSourceBuilder()
     // Provide a Subsquid Network Portal URL.
     .setPortal('http://127.0.0.1:8000/datasets/solana-beta')
+    // Make sure that this block is above the first block of solana-beta!
+    // Find out the current first slot from
+    //   curl http://127.0.0.1:8000/datasets/solana-beta/metadata
     .setBlockRange({from: 317617480})
     //
     // Block data returned by the data source has the following structure:
