@@ -11,11 +11,16 @@ import {Exchange} from './model'
 // that defines where to get the data and what data should we get.
 const dataSource = new DataSourceBuilder()
     // Provide a Subsquid Network Portal URL.
-    .setPortal('http://127.0.0.1:8000/datasets/solana-beta')
+    .setPortal({
+        url: 'https://portal.sqd.dev/datasets/solana-beta',
+        http: {
+            retryAttempts: Infinity
+        }
+    })
     // Make sure that this block is above the first block of solana-beta!
     // Find out the current first slot from
     //   curl http://127.0.0.1:8000/datasets/solana-beta/metadata
-    .setBlockRange({from: 317617480})
+    .setBlockRange({from: 338434156})
     //
     // Block data returned by the data source has the following structure:
     //
@@ -124,7 +129,7 @@ const dataSource = new DataSourceBuilder()
 //
 // For full configuration details please consult
 // https://github.com/subsquid/squid-sdk/blob/278195bd5a5ed0a9e24bfb99ee7bbb86ff94ccb3/typeorm/typeorm-config/src/config.ts#L21
-const database = new TypeormDatabase({supportHotBlocks: false})
+const database = new TypeormDatabase({supportHotBlocks: true})
 
 
 // Now we are ready to start data processing
@@ -134,6 +139,7 @@ run(dataSource, database, async ctx => {
     // We can use `augmentBlock()` function from `@subsquid/solana-objects`
     // to enrich block items with references to related objects and
     // with convenient getters for derived data (e.g. `Instruction.d8`).
+
     let blocks = ctx.blocks.map(augmentBlock)
 
     let exchanges: Exchange[] = []
