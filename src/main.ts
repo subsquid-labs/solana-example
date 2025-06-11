@@ -12,15 +12,16 @@ import {Exchange} from './model'
 const dataSource = new DataSourceBuilder()
     // Provide a Subsquid Network Portal URL.
     .setPortal({
-        url: 'https://portal.sqd.dev/datasets/solana-beta',
+        url: 'https://portal.sqd.dev/datasets/solana-mainnet',
         http: {
             retryAttempts: Infinity
         }
     })
-    // Make sure that this block is above the first block of solana-beta!
+    // Make sure that this block is above the first block
+    // of the solana-mainnet dataset!
     // Find out the current first slot from
-    //   curl http://127.0.0.1:8000/datasets/solana-beta/metadata
-    .setBlockRange({from: 338434156})
+    //   curl https://portal.sqd.dev/datasets/solana-mainnet/metadata
+    .setBlockRange({from: 317617480})
     //
     // Block data returned by the data source has the following structure:
     //
@@ -87,7 +88,8 @@ const dataSource = new DataSourceBuilder()
             transaction: true, // transaction, that executed the given instruction
             transactionTokenBalances: true, // all token balance records of executed transaction
         }
-    }).build()
+    })
+    .build()
 
 
 // Once we've prepared a data source we can start fetching the data right away:
