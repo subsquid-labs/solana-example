@@ -6,18 +6,18 @@
     "build": "rm -rf lib && tsc"
   },
   "dependencies": {
-    "@subsquid/batch-processor": "1.0.0-portal-api.a3f844",
+    "@subsquid/batch-processor": "1.0.0-portal-api.b241d7",
     "@subsquid/borsh": "^0.2.0",
-    "@subsquid/solana-objects": "0.0.5-portal-api.a3f844",
-    "@subsquid/solana-stream": "1.0.0-portal-api.a3f844",
+    "@subsquid/solana-objects": "0.0.3-portal-api.b241d7",
+    "@subsquid/solana-stream": "1.0.0-portal-api.b241d7",
     "@subsquid/typeorm-migration": "^1.3.0",
-    "@subsquid/typeorm-store": "1.6.0-portal-api.a3f844",
+    "@subsquid/typeorm-store": "1.6.0-portal-api.b241d7",
     "dotenv": "^16.4.7",
     "pg": "^8.13.1",
     "typeorm": "^0.3.20"
   },
   "devDependencies": {
-    "@subsquid/solana-typegen": "0.6.2-portal-api.a3f844",
+    "@subsquid/solana-typegen": "0.4.1-portal-api.b241d7",
     "@types/node": "^22.13.1",
     "typescript": "~5.7.3"
   }
