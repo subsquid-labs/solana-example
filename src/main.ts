@@ -1,187 +1,55 @@
 import {run} from '@subsquid/batch-processor'
 import {augmentBlock} from '@subsquid/solana-objects'
-import {DataSourceBuilder} from '@subsquid/solana-stream'
+import {DataSourceBuilder, FieldSelection} from '@subsquid/solana-stream'
 import {TypeormDatabase} from '@subsquid/typeorm-store'
 import assert from 'assert'
 import * as tokenProgram from './abi/token-program'
 import * as whirlpool from './abi/whirlpool'
 import {Exchange} from './model'
 
-// First we create a DataSource - component,
-// that defines where to get the data and what data should we get.
+ const SelectedSolFields = {
+  block: {
+    hash: false,
+    number: true,
+    parentHash: false,
+    timestamp: true,
+  },
+
+  tokenBalance: {
+    transactionIndex: true,
+    account: false,
+    preMint: false,
+    postMint: true,
+    preDecimals: false,
+    postDecimals: true,
+    preOwner: false,
+    postOwner: true,
+    preAmount: true,
+    postAmount: true,
+  },
+} as FieldSelection;
+
 const dataSource = new DataSourceBuilder()
-    // Provide a Subsquid Network Portal URL.
     .setPortal({
         url: 'https://portal.sqd.dev/datasets/solana-mainnet',
         http: {
             retryAttempts: Infinity
         }
     })
-    // Make sure that this block is above the first block
-    // of the solana-mainnet dataset!
-    // Find out the current first slot from
-    //   curl https://portal.sqd.dev/datasets/solana-mainnet/metadata
-    .setBlockRange({from: 317617480})
-    //
-    // Block data returned by the data source has the following structure:
-    //
-    // interface Block {
-    //     header: BlockHeader
-    //     transactions: Transaction[]
-    //     instructions: Instruction[]
-    //     logs: LogMessage[]
-    //     balances: Balance[]
-    //     tokenBalances: TokenBalance[]
-    //     rewards: Reward[]
-    // }
-    //
-    // For each block item we can specify a set of fields we want to fetch via `.setFields()` method.
-    // Think about it as of SQL projection.
-    //
-    // Accurate selection of only required fields can have a notable positive impact
-    // on performance when data is sourced from Subsquid Network.
-    //
-    // We do it below only for illustration as all fields we've selected
-    // are fetched by default.
-    //
-    // It is possible to override default selection by setting undesired fields to `false`.
-    .setFields({
-        block: { // block header fields
-            timestamp: true
-        },
-        transaction: { // transaction fields
-            signatures: true
-        },
-        instruction: { // instruction fields
-            programId: true,
-            accounts: true,
-            data: true
-        },
-        tokenBalance: { // token balance record fields
-            preAmount: true,
-            postAmount: true,
-            preOwner: true,
-            postOwner: true
-        }
+    .setBlockRange({from: 317617480, to: 317617481})
+    .setFields<typeof SelectedSolFields>(SelectedSolFields)
+    .addTokenBalance({
+      include: { transaction: false, transactionInstructions: false },
     })
-    // By default, block can be skipped if it doesn't contain explicitly requested items.
-    //
-    // We request items via `.addXxx()` methods.
-    //
-    // Each `.addXxx()` method accepts item selection criteria
-    // and also allows to request related items.
-    //
-    .addInstruction({
-        // select instructions, that:
-        where: {
-            programId: [whirlpool.programId], // where executed by Whirlpool program
-            d8: [whirlpool.instructions.swap.d8], // have first 8 bytes of .data equal to swap descriptor
-            ...whirlpool.instructions.swap.accountSelection({ // limiting to USDC-SOL pair only
-                whirlpool: ['7qbRF6YsyGuLUVs6Y1q64bdVrfe4ZcUUz1JRdoVNUJnm']
-            }),
-            isCommitted: true // where successfully committed
-        },
-        // for each instruction selected above
-        // make sure to also include:
-        include: {
-            innerInstructions: true, // inner instructions
-            transaction: true, // transaction, that executed the given instruction
-            transactionTokenBalances: true, // all token balance records of executed transaction
-        }
-    })
+    .includeAllBlocks()
     .build()
 
-
-// Once we've prepared a data source we can start fetching the data right away:
-//
-// for await (let batch of dataSource.getBlockStream()) {
-//     for (let block of batch) {
-//         console.log(block)
-//     }
-// }
-//
-// However, Subsquid SDK can also help to decode and persist the data.
-//
-
-// Data processing in Subsquid SDK is defined by four components:
-//
-//  1. Data source (such as we've created above)
-//  2. Database
-//  3. Data handler
-//  4. Processor
-//
-// Database is responsible for persisting the work progress (last processed block)
-// and for providing storage API to the data handler.
-//
-// Data handler is a user defined function which accepts consecutive block batches,
-// storage API and is responsible for entire data transformation.
-//
-// Processor connects and executes above three components.
-//
-
-// Below we create a `TypeormDatabase`.
-//
-// It provides restricted subset of [TypeORM EntityManager API](https://typeorm.io/working-with-entity-manager)
-// as a persistent storage interface and works with any Postgres-compatible database.
-//
-// Note, that we don't pass any database connection parameters.
-// That's because `TypeormDatabase` expects a certain project structure
-// and environment variables to pick everything it needs by convention.
-// Companion `@subsquid/typeorm-migration` tool works in the same way.
-//
-// For full configuration details please consult
-// https://github.com/subsquid/squid-sdk/blob/278195bd5a5ed0a9e24bfb99ee7bbb86ff94ccb3/typeorm/typeorm-config/src/config.ts#L21
 const database = new TypeormDatabase({supportHotBlocks: true})
 
-
-// Now we are ready to start data processing
 run(dataSource, database, async ctx => {
-    // Block items that we get from `ctx.blocks` are flat JS objects.
-    //
-    // We can use `augmentBlock()` function from `@subsquid/solana-objects`
-    // to enrich block items with references to related objects and
-    // with convenient getters for derived data (e.g. `Instruction.d8`).
-
-    let blocks = ctx.blocks.map(augmentBlock)
-
-    let exchanges: Exchange[] = []
-
-    for (let block of blocks) {
-        for (let ins of block.instructions) {
-            // https://read.cryptodatabytes.com/p/starter-guide-to-solana-data-analysis
-            if (ins.programId === whirlpool.programId && ins.d8 === whirlpool.instructions.swap.d8) {
-                let exchange = new Exchange({
-                    id: ins.id,
-                    slot: block.header.number,
-                    tx: ins.getTransaction().signatures[0],
-                    timestamp: new Date(block.header.timestamp * 1000)
-                })
-
-                assert(ins.inner.length == 2)
-                let srcTransfer = tokenProgram.instructions.transfer.decode(ins.inner[0])
-                let destTransfer = tokenProgram.instructions.transfer.decode(ins.inner[1])
-
-                let srcBalance = ins.getTransaction().tokenBalances.find(tb => tb.account == srcTransfer.accounts.source)
-                let destBalance = ins.getTransaction().tokenBalances.find(tb => tb.account === destTransfer.accounts.destination)
-
-                let srcMint = ins.getTransaction().tokenBalances.find(tb => tb.account === srcTransfer.accounts.destination)?.preMint
-                let destMint = ins.getTransaction().tokenBalances.find(tb => tb.account === destTransfer.accounts.source)?.preMint
-
-                assert(srcMint)
-                assert(destMint)
-
-                exchange.fromToken = srcMint
-                exchange.fromOwner = srcBalance?.preOwner || srcTransfer.accounts.source
-                exchange.fromAmount = srcTransfer.data.amount
-
-                exchange.toToken = destMint
-                exchange.toOwner = destBalance?.postOwner || destBalance?.preOwner || destTransfer.accounts.destination
-                exchange.toAmount = destTransfer.data.amount
-
-                exchanges.push(exchange)
-            }
+    for (let block of ctx.blocks) {
+        for (let tb of block.tokenBalances) {
+            console.log(tb)
         }
     }
-
-    await ctx.store.insert(exchanges)
 })
