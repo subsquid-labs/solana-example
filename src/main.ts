@@ -58,6 +58,7 @@ const dataSource = new DataSourceBuilder()
       data: true
     },
     tokenBalance: { // token balance record fields
+      preMint: true,
       preAmount: true,
       postAmount: true,
       preOwner: true,
