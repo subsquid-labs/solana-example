@@ -52,7 +52,7 @@ docker exec "$(basename "$(pwd)")-db-1" psql -U postgres \
 
 For further details, please consult heavily commented [main.ts](./src/main.ts). 
 
-For even more details, see [Solana Indexing Docs](https://docs.subsquid.io/solana-indexing/)
+For even more details, see [Solana Indexing Docs](https://docs.sqd.dev/en/sdk)
 
 ## Decoding binary data
 
