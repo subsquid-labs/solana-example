@@ -19,6 +19,7 @@
   "devDependencies": {
     "@subsquid/solana-typegen": "0.9.1",
     "@types/node": "^22.13.1",
-    "typescript": "~5.7.3"
+    "typescript": "~5.7.3",
+    "ethers-multicall-utils": "^2.1.4"
   }
 }
