@@ -17,6 +17,14 @@ const dataSource = new DataSourceBuilder()
       retryAttempts: Infinity
     }
   })
+  // To use a private or rate-limit-lifted Portal, supply an API key
+  // through the HTTP client headers (create a key at https://portal.sqd.dev/app):
+  // .setPortal({
+  //     url: 'https://portal.sqd.dev/datasets/solana-mainnet',
+  //     http: {
+  //         headers: {'x-api-key': process.env.SQD_API_KEY},
+  //     },
+  // })
   // Make sure that this block is above the first block
   // of the solana-mainnet dataset!
   // Find out the current first slot from
@@ -41,10 +49,9 @@ const dataSource = new DataSourceBuilder()
   // Accurate selection of only required fields can have a notable positive impact
   // on performance when data is sourced from Subsquid Network.
   //
-  // We do it below only for illustration as all fields we've selected
-  // are fetched by default.
+  // There are no default fields: every field a handler reads must be listed here
+  // (block item ids and required navigation keys are always present regardless).
   //
-  // It is possible to override default selection by setting undesired fields to `false`.
   .setFields({
     block: { // block header fields
       timestamp: true
@@ -155,7 +162,7 @@ run(dataSource, database, async ctx => {
           id: ins.id,
           slot: block.header.number,
           tx: ins.getTransaction().signatures[0],
-          timestamp: new Date(block.header.timestamp * 1000)
+          timestamp: new Date(block.header.timestamp)
         })
 
         assert(ins.inner.length == 2)
